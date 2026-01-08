@@ -2,7 +2,7 @@
 #include <lib/memory.h>
 #include <core/log.h>
 
-#define MAX_PHYS_PAGES (1024*1024)  // desteklenen max sayfa sayısı
+#define MAX_PHYS_PAGES (1024*1024)
 
 static uint8_t *bitmap;
 static uint64_t total_pages;
