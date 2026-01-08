@@ -39,8 +39,4 @@ typedef struct {
     uint64_t align;
 } __attribute__((packed)) elf64_phdr_t;
 
-/*
- * Loads ELF into current address space
- * returns entry point or 0 on failure
- */
 uint64_t elf_load(void *image);
