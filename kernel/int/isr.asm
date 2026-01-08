@@ -16,7 +16,8 @@ isr14:
     mov fs, ax
     mov gs, ax
 
-    push dword [esp + 44]   ; error code
+    ; error code CPU tarafından stack'e kondu
+    push dword [esp + 44]
     call page_fault_handler
     add esp, 4
 
@@ -26,6 +27,6 @@ isr14:
     pop ds
 
     popa
-    add esp, 4              ; pop error code
+    add esp, 4     ; error code'u temizle
     sti
     iret
