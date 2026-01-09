@@ -1,22 +1,22 @@
+[bits 32]
+
 global isr14
 extern page_fault_handler
 
 isr14:
     cli
-    pusha
 
+    pushad              ; registers
     push ds
     push es
     push fs
     push gs
 
-    mov ax, 0x10
+    mov ax, 0x10        ; kernel data segment
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
 
-    push dword [esp + 44]
+    push dword [esp + 44]   ; error code
     call page_fault_handler
     add esp, 4
 
@@ -24,8 +24,7 @@ isr14:
     pop fs
     pop es
     pop ds
+    popad
 
-    popa
-    add esp, 4
     sti
-    iret
+    iretd
