@@ -1,44 +1,43 @@
-#include "page_fault.h"
-#include <kernel/mm/vmm.h>
-#include <kernel/mm/pmm.h>
-#include <kernel/lib/printk.h>
+#include <stdint.h>
+#include <core/panic.h>
+#include <mm/pmm.h>
+#include <mm/vmm.h>
 
-static inline uint32_t read_cr2(void)
+void page_fault_handler(uint32_t err)
 {
-    uint32_t val;
-    asm volatile("mov %%cr2, %0" : "=r"(val));
-    return val;
-}
+    uint32_t fault_addr;
+    asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
 
-void page_fault_handler(uint32_t err_code)
-{
-    uint32_t fault_addr = read_cr2();
+    uint32_t present  = err & 0x1;
+    uint32_t write    = err & 0x2;
+    uint32_t user     = err & 0x4;
+    uint32_t reserved = err & 0x8;
+    uint32_t fetch    = err & 0x10;
 
-    int present   = err_code & 0x1;
-    int write     = err_code & 0x2;
-    int user      = err_code & 0x4;
-    int reserved  = err_code & 0x8;
-    int exec      = err_code & 0x10;
-
-    printk("\n#PF at %x\n", fault_addr);
-    printk("P=%d W=%d U=%d R=%d X=%d\n",
-           present, write, user, reserved, exec);
-
-    uint32_t page = fault_addr & 0xFFFFF000;
-
-    if (!present)
-    {
+    if (!present) {
+        uint32_t virt = fault_addr & 0xFFFFF000;
         uint32_t phys = pmm_alloc_page();
+
         if (!phys)
-        {
             panic("Out of physical memory");
-        }
 
-        vmm_map_page(page, phys,
-            VMM_PRESENT | VMM_WRITABLE | VMM_GLOBAL);
-
+        vmm_map_page(
+            virt,
+            phys,
+            VMM_PRESENT | VMM_WRITABLE
+        );
         return;
     }
 
-    panic("Page protection fault");
+    panic(
+        "PAGE FAULT\n"
+        "ADDR=%x ERR=%x P=%d W=%d U=%d R=%d I=%d",
+        fault_addr,
+        err,
+        present,
+        write,
+        user,
+        reserved,
+        fetch
+    );
 }
