@@ -1,89 +1,98 @@
-#include <exe/exec.h>
-#include <exe/elf.h>
+#include <stdint.h>
+#include <stddef.h>
 
-#include <mm/pmm.h>
-#include <mm/vmm.h>
-#include <mm/paging.h>
+#include <kernel/mm/pmm.h>
+#include <kernel/mm/vmm32.h>
+#include <kernel/mm/paging32.h>
+#include <kernel/int/interrupts.h>
+#include <kernel/panic.h>
 
-#include <core/panic.h>
-#include <lib/string.h>
-#include <lib/memory.h>
+#include "elf32.h"
+#include "exec.h"
 
-/*
- * Simple execution:
-* - Creates a new page index
-* - Maps ELF segments * - Sets up the user stack
-* - Returns the entry point
- */
+#define USER_BASE       0x00400000
+#define USER_STACK_TOP  0xBFFFE000
+#define USER_STACK_SIZE 0x4000   /* 16 KB */
 
-#define USER_STACK_TOP   0xBFFFE000
-#define USER_STACK_SIZE  0x4000    /* 16 KB */
+static void exec_create_user_stack(void);
 
-uint32_t exec_elf(const char *path)
+int exec_load_elf32(void *elf_image)
 {
-    elf_t elf;
+    Elf32_Ehdr *eh = (Elf32_Ehdr *)elf_image;
 
-    if (elf_load(path, &elf) != 0)
-        panic("exec: invalid ELF");
+    if (eh->e_ident[0] != 0x7F ||
+        eh->e_ident[1] != 'E' ||
+        eh->e_ident[2] != 'L' ||
+        eh->e_ident[3] != 'F')
+        return -1;
 
-    page_directory_t *new_dir = vmm_create_directory();
-    if (!new_dir)
-        panic("exec: no memory for page directory");
+    if (eh->e_ident[4] != ELFCLASS32)
+        return -1;
 
-    vmm_clone_kernel_space(new_dir);
+    Elf32_Phdr *ph =
+        (Elf32_Phdr *)((uint8_t *)elf_image + eh->e_phoff);
 
-    for (uint32_t i = 0; i < elf.phnum; i++) {
-        elf_phdr_t *ph = &elf.phdrs[i];
-
-        if (ph->type != ELF_PT_LOAD)
+    for (uint32_t i = 0; i < eh->e_phnum; i++) {
+        if (ph[i].p_type != PT_LOAD)
             continue;
 
-        uint32_t virt = ph->vaddr & 0xFFFFF000;
-        uint32_t end  = ph->vaddr + ph->memsz;
+        uint32_t vaddr = ph[i].p_vaddr;
+        uint32_t memsz = ph[i].p_memsz;
+        uint32_t filesz = ph[i].p_filesz;
+        uint8_t *src =
+            (uint8_t *)elf_image + ph[i].p_offset;
 
-        for (; virt < end; virt += 0x1000) {
+        for (uint32_t off = 0; off < memsz; off += 0x1000) {
             uint32_t phys = pmm_alloc_page();
             if (!phys)
-                panic("exec: out of memory");
+                panic("exec: out of physical memory");
 
-            vmm_map_page_ex(
-                new_dir,
-                virt,
+            vmm32_map_page(
+                (vaddr + off) & 0xFFFFF000,
                 phys,
                 VMM_PRESENT | VMM_USER | VMM_WRITABLE
             );
-        }
 
-        memcpy(
-            (void*)ph->vaddr,
-            ph->data,
-            ph->filesz
-        );
-        
-        if (ph->memsz > ph->filesz) {
-            memset(
-                (void*)(ph->vaddr + ph->filesz),
-                0,
-                ph->memsz - ph->filesz
-            );
+            uint32_t copy = 0x1000;
+            if (off + copy > filesz)
+                copy = (filesz > off) ? filesz - off : 0;
+
+            if (copy)
+                memcpy(
+                    (void *)(vaddr + off),
+                    src + off,
+                    copy
+                );
         }
     }
 
-    /* user stack */
+    exec_create_user_stack();
+
+    uint32_t entry = eh->e_entry;
+    exec_enter_user(entry, USER_STACK_TOP);
+
+    return 0;
+}
+
+
+static void exec_create_user_stack(void)
+{
+
     for (uint32_t off = 0; off < USER_STACK_SIZE; off += 0x1000) {
         uint32_t phys = pmm_alloc_page();
         if (!phys)
             panic("exec: stack alloc failed");
 
-        vmm_map_page_ex(
-            new_dir,
+        vmm32_map_page(
             USER_STACK_TOP - off,
             phys,
             VMM_PRESENT | VMM_USER | VMM_WRITABLE
         );
     }
-
-    vmm_switch_directory(new_dir);
-
-    return elf.entry;
 }
+
+/*
+ * Switch to ring3 and start execution
+ * Implemented in assembly
+ */
+extern void exec_enter_user(uint32_t entry, uint32_t user_stack);
