@@ -2,7 +2,6 @@
 #include <stdint.h>
 
 #define ELF_MAGIC 0x464C457F
-
 #define ELF_PT_LOAD 1
 
 typedef struct {
@@ -37,3 +36,5 @@ typedef struct {
     uint32_t flags;
     uint32_t align;
 } Elf32_Phdr;
+
+void* elf_load(void* elf_image);
