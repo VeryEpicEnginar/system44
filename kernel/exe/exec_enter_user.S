@@ -1,27 +1,27 @@
 .global exec_enter_user
-.extern tss_flush
 
 /*
  * void exec_enter_user(uint32_t entry, uint32_t user_stack)
  *
- * entry -> EIP (ring3)
+ * entry      -> EIP (ring3)
  * user_stack -> ESP (ring3)
  */
+
 exec_enter_user:
     cli
 
-    mov 4(%esp), %eax     /* entry */
-    mov 8(%esp), %ebx     /* user stack */
+    mov 4(%esp), %eax    /* entry */
+    mov 8(%esp), %ebx    /* user stack */
 
-    /* load user data segments */
-    mov $0x23, %ax        /* USER_DS = 0x20 | 3 */
+    /* Load user data segment selectors */
+    mov $0x23, %ax       /* USER_DS = 0x20 | 3 */
     mov %ax, %ds
     mov %ax, %es
     mov %ax, %fs
     mov %ax, %gs
 
     /*
-     * stack for iret:
+     * iret stack layout:
      * SS
      * ESP
      * EFLAGS
