@@ -1,27 +1,25 @@
-CC = gcc
-LD = ld
+CC      = gcc
+AS      = gcc
+LD      = ld
 
-CFLAGS = -m32 \
-         -ffreestanding \
-         -fno-pie \
-         -fno-stack-protector \
-         -Wall -Wextra -O2 \
-         -I. -I../ -I../mm -I../lib
+CFLAGS  = -m32 -ffreestanding -fno-stack-protector -fno-pic \
+          -nostdlib -nostdinc -Wall -Wextra -O2
 
-LDFLAGS = -m elf_i386
+ASFLAGS = -m32 -ffreestanding
 
-SRCS = elf.c
-OBJS = elf.o
+SRCS = elf.c exec.c exec_enter_user.S
+OBJS = elf.o exec.o exec_enter_user.o
 
-TARGET = exe.o
-
-all: $(TARGET)
-
-$(TARGET): $(OBJS)
-	$(LD) -r $(LDFLAGS) -o $@ $(OBJS)
+all: $(OBJS)
 
 elf.o: elf.c elf.h
 	$(CC) $(CFLAGS) -c elf.c -o elf.o
 
+exec.o: exec.c exec.h elf.h
+	$(CC) $(CFLAGS) -c exec.c -o exec.o
+
+exec_enter_user.o: exec_enter_user.S
+	$(AS) $(ASFLAGS) -c exec_enter_user.S -o exec_enter_user.o
+
 clean:
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS)
