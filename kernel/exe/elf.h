@@ -1,4 +1,6 @@
-#pragma once
+#ifndef ELF_H
+#define ELF_H
+
 #include <stdint.h>
 
 #define ELF_MAGIC 0x464C457F
@@ -24,7 +26,7 @@ typedef struct {
     uint16_t shentsize;
     uint16_t shnum;
     uint16_t shstrndx;
-} Elf32_Ehdr;
+} __attribute__((packed)) Elf32_Ehdr;
 
 typedef struct {
     uint32_t type;
@@ -35,6 +37,8 @@ typedef struct {
     uint32_t memsz;
     uint32_t flags;
     uint32_t align;
-} Elf32_Phdr;
+} __attribute__((packed)) Elf32_Phdr;
 
-void* elf_load(void* elf_image);
+uint32_t elf_load(const void *image);
+
+#endif
