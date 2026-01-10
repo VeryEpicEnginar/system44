@@ -10,8 +10,8 @@ CFLAGS = -m32 \
 
 LDFLAGS = -m elf_i386
 
-SRCS = elf.c exec.c uex.c
-OBJS = $(SRCS:.c=.o)
+SRCS = elf.c
+OBJS = elf.o
 
 TARGET = exe.o
 
@@ -20,8 +20,8 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(LD) -r $(LDFLAGS) -o $@ $(OBJS)
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+elf.o: elf.c elf.h
+	$(CC) $(CFLAGS) -c elf.c -o elf.o
 
 clean:
 	rm -f $(OBJS) $(TARGET)
