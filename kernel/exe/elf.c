@@ -1,10 +1,10 @@
-#include "elf32.h"
-#include "exec.h"
+#include "elf.h"
 
 #include "../mm/pmm.h"
 #include "../mm/vmm32.h"
 #include "../core/panic.h"
 #include "../lib/string.h"
+
 #include <stdint.h>
 
 void* elf_load(void* elf_image)
@@ -12,7 +12,7 @@ void* elf_load(void* elf_image)
     Elf32_Ehdr* eh = (Elf32_Ehdr*)elf_image;
 
     if (eh->magic != ELF_MAGIC) {
-        panic("Invalid ELF magic");
+        panic("ELF: bad magic");
     }
 
     Elf32_Phdr* ph =
@@ -30,7 +30,7 @@ void* elf_load(void* elf_image)
             uint32_t pa = (uint32_t)pmm_alloc_pages(1);
 
             if (!pa)
-                panic("Out of physical memory");
+                panic("ELF: out of physical memory");
 
             vmm32_map_page(
                 va,
